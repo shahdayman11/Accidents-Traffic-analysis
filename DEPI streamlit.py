@@ -81,6 +81,7 @@ def load_models():
         risk_model_info = joblib.load('models/risk_model_info.pkl')
         
         download_status.success("🎉 All models loaded successfully!")
+        st.sidebar.success(f"Loaded {len(severity_features)} features")
         return (severity_model, scaler, power_transformer,
                 severity_features, preprocessing_objects, risk_model, risk_model_info)
         
@@ -108,9 +109,6 @@ risk_num_cols = risk_model_info['num_cols']
 risk_cat_cols = risk_model_info['cat_cols']
 risk_threshold = risk_model_info['risk_threshold']
 
-# Debug: Show what features the model expects
-st.sidebar.info(f"Model expects {len(severity_features)} features")
-
 # Sidebar navigation
 st.sidebar.title("Navigation")
 app_mode = st.sidebar.selectbox("Choose Prediction Mode", 
@@ -122,18 +120,23 @@ if app_mode == "Severity Prediction":
     col1, col2, col3 = st.columns(3)
 
     with col1:
-        st.subheader("Time & Basic Info")
+        st.subheader("Location & Basic Info")
         month = st.slider("Month", 1, 12, 6)
+        start_lat = st.number_input("Start Latitude", value=37.77, format="%.6f")
+        start_lng = st.number_input("Start Longitude", value=-122.42, format="%.6f")
+        distance = st.number_input("Distance (miles)", value=1.5, min_value=0.0)
+        accident_count = st.number_input("Accident Count", value=5, min_value=0)
         is_rush_hour = st.selectbox("Is Rush Hour?", ["No", "Yes"])
         is_weekend = st.selectbox("Is Weekend?", ["No", "Yes"])
-        season = st.selectbox("Season", ["Winter", "Spring", "Summer", "Fall"])
 
     with col2:
         st.subheader("Weather Conditions")
         temperature = st.number_input("Temperature (°F)", value=65.0)
         humidity = st.slider("Humidity (%)", 0, 100, 60)
+        pressure = st.number_input("Pressure (in)", value=29.92)
         visibility = st.number_input("Visibility (miles)", value=10.0, min_value=0.0)
         wind_speed = st.number_input("Wind Speed (mph)", value=8.0, min_value=0.0)
+        precipitation = st.number_input("Precipitation (inches)", value=0.0, min_value=0.0)
 
     with col3:
         st.subheader("Traffic Data")
@@ -141,6 +144,7 @@ if app_mode == "Severity Prediction":
         traffic_severity = st.slider("Traffic Severity", 1, 5, 3)
         delay_typical = st.number_input("Delay from Typical Traffic (mins)", value=15.0, min_value=0.0)
         delay_freeflow = st.number_input("Delay from Free Flow (mins)", value=8.0, min_value=0.0)
+        season = st.selectbox("Season", ["Winter", "Spring", "Summer", "Fall"])
 
     if st.button("🔍 Predict Severity", type="primary", use_container_width=True):
         # Convert inputs
@@ -149,12 +153,17 @@ if app_mode == "Severity Prediction":
         season_mapping = {"Winter": 0, "Spring": 1, "Summer": 2, "Fall": 3}
         season_val = season_mapping[season]
 
-        # Create input data - EXACTLY 15 features that match training
+        # Create input data - EXACTLY 25 features that match training
         input_data = pd.DataFrame({
-            # Original features (9)
+            # Original features (14)
             'Month': [month],
+            'Accident_Count': [accident_count],
+            'Start_Lat': [start_lat],
+            'Start_Lng': [start_lng],
+            'Distance(mi)': [distance],
             'Temperature(F)': [temperature],
             'Humidity(%)': [humidity],
+            'Pressure(in)': [pressure],
             'Visibility(mi)': [visibility],
             'Wind_Speed(mph)': [wind_speed],
             'Traffic_Event_Count': [traffic_event_count],
@@ -162,26 +171,44 @@ if app_mode == "Severity Prediction":
             'DelayFromTypicalTraffic(mins)': [delay_typical],
             'DelayFromFreeFlowSpeed(mins)': [delay_freeflow],
             
-            # Engineered features (6)
+            # Engineered features (11)
             'Is_Rush_Hour': [rush_hour_val],
             'Weather_Severity_Index': [
-                (10 - min(visibility, 10)) * 0.3 + 
-                np.log1p(wind_speed) * 0.3 + 
+                (10 - min(visibility, 10)) * 0.3 +
+                np.log1p(wind_speed) * 0.3 +
+                np.log1p(precipitation * 50) * 0.2 +
                 (100 - humidity) * 0.2
             ],
+            'Traffic_Congestion_Score': [
+                np.log1p(delay_typical) * 0.5 +
+                np.log1p(delay_freeflow) * 0.3 +
+                np.log1p(traffic_event_count) * 0.2
+            ],
+            'Accident_Density': [max(accident_count, 1)],
+            'Log_Accident_Density': [np.log1p(max(accident_count, 1))],
+            'Weather_Traffic_Interaction': [0],  # Will calculate below
             'Visibility_Humidity_Interaction': [visibility * humidity],
+            'Temperature_Squared': [temperature ** 2],
+            'Wind_Speed_Squared': [wind_speed ** 2],
             'Season': [season_val],
             'Is_Weekend': [weekend_val]
         })
 
+        # Calculate interaction feature
+        input_data['Weather_Traffic_Interaction'] = (
+            input_data['Weather_Severity_Index'] * input_data['Traffic_Congestion_Score']
+        )
+
         try:
-            # Debug: Show input features
-            st.sidebar.write("Input features:", list(input_data.columns))
-            st.sidebar.write("Expected features:", severity_features)
+            # Debug: Show feature matching
+            st.sidebar.write(f"Input features: {len(input_data.columns)}")
+            st.sidebar.write(f"Expected features: {len(severity_features)}")
             
-            # Check if features match
+            # Check if features match exactly
             if list(input_data.columns) != severity_features:
-                st.error(f"Feature mismatch! Expected {len(severity_features)} features, got {len(input_data.columns)}")
+                st.error("❌ Feature mismatch! The features don't match the trained model.")
+                st.write("Expected:", severity_features)
+                st.write("Got:", list(input_data.columns))
                 st.stop()
 
             # Preprocess and predict (WITHOUT feature selection)
@@ -223,7 +250,6 @@ if app_mode == "Severity Prediction":
 
         except Exception as e:
             st.error(f"Prediction error: {str(e)}")
-            st.info("Check the sidebar for feature mismatch details")
 
 elif app_mode == "Risk Prediction":
     st.header("🔥 Risk Prediction")
@@ -236,16 +262,16 @@ else:
     ## Dual Accident Prediction System
     
     **Features:**
-    - 🚨 **Severity Prediction**: Gradient Boosting model for accident severity
+    - 🚨 **Severity Prediction**: Gradient Boosting model (25 features)
     - 🔥 **Risk Prediction**: CatBoost model for high-risk areas
     
     **Model Details:**
-    - 15 carefully selected features
-    - Optimized without large feature selector
+    - 25 carefully engineered features
     - Real-time predictions
+    - Optimized performance
     
     **Model Status:** ✅ Loaded Successfully
     """)
 
 st.markdown("---")
-st.markdown("Deployed on Streamlit Community Cloud | Optimized for 15 Features")
+st.markdown("Deployed on Streamlit Community Cloud | 25 Feature Model")
