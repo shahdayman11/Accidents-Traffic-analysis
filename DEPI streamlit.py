@@ -19,7 +19,6 @@ st.set_page_config(
 )
 
 MODEL_URLS = {
-MODEL_URLS = {
     'severity_gb_model.pkl': 'https://drive.google.com/uc?export=download&id=1e_QQLqisbiaucI1PvGZS_NbJ6tfqVnVL',
     'feature_selector.pkl': 'https://drive.google.com/uc?export=download&id=1UAs3iGBtKVQeMQ6FUh6cb0_bzF_4ul5J',
     'scaler.pkl': 'https://drive.google.com/uc?export=download&id=1JvaKTnDKflk9wKFh2rLFgiJ4FFxxVfAX',
