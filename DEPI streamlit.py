@@ -15,7 +15,7 @@ st.set_page_config(
     layout="wide"
 )
 
-# Google Drive URLs for Risk Model
+# Google Drive URLs for Risk Model (ONLY essential files)
 RISK_MODEL_URLS = {
     'risk_catboost_model.cbm': 'https://drive.google.com/uc?export=download&id=1TrgEU86-KZ5-V8m8AbNLcyCUM9exAllb',
     'risk_model_info.pkl': 'https://drive.google.com/uc?export=download&id=1uMtB3ik4j1gNoZ8G9XCKIG-NwqIGk5G5'
@@ -41,13 +41,18 @@ def load_risk_model():
     """Load risk prediction model"""
     os.makedirs('models', exist_ok=True)
     
-    # Download model files
+    # Download ONLY model files (no visualization files)
+    download_success = True
     for filename, url in RISK_MODEL_URLS.items():
         filepath = f'models/{filename}'
         if not os.path.exists(filepath):
             with st.spinner(f"📥 Downloading {filename}..."):
                 if not download_file_simple(url, filepath):
-                    return None
+                    download_success = False
+                    break
+    
+    if not download_success:
+        return None
     
     try:
         # Load risk model
@@ -55,7 +60,6 @@ def load_risk_model():
         risk_model.load_model('models/risk_catboost_model.cbm')
         risk_model_info = joblib.load('models/risk_model_info.pkl')
         
-        st.success("✅ Risk model loaded successfully!")
         return risk_model, risk_model_info
         
     except Exception as e:
@@ -66,13 +70,21 @@ def load_risk_model():
 st.title("🚨 Accident Risk Prediction System")
 
 # Load model
-model_data = load_risk_model()
+with st.spinner("Loading risk prediction model..."):
+    model_data = load_risk_model()
 
 if model_data is None:
-    st.error("Failed to load risk model. Please check your Google Drive links.")
+    st.error("""
+    Failed to load risk model. Please check:
+    1. Google Drive links are correct
+    2. Files are shared as "Anyone with the link"
+    3. File IDs in the code match your uploaded files
+    """)
     st.stop()
 
 risk_model, risk_model_info = model_data
+
+st.success("✅ Risk model loaded successfully!")
 
 # Sidebar navigation
 st.sidebar.title("Navigation")
