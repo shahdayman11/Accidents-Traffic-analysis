@@ -23,17 +23,18 @@ warnings.filterwarnings('ignore')
 # Page configuration
 st.set_page_config(
     page_title="Dual Accident Prediction System",
-    page_icon="🚗",
+    page_icon="🚗", 
     layout="wide"
 )
 
 # === REPLACE THESE WITH YOUR ACTUAL GOOGLE DRIVE FILE IDs ===
 MODEL_URLS = {
     'severity_gb_model.pkl': 'https://drive.google.com/uc?export=download&id=1e_QQLqisbiaucI1PvGZS_NbJ6tfqVnVL',
+    'feature_importance.pkl': 'https://drive.google.com/uc?export=download&id=1olaI-iW5Ye43EslV2HxxOAq59seghPYs',
     'feature_selector.pkl': 'https://drive.google.com/uc?export=download&id=1UAs3iGBtKVQeMQ6FUh6cb0_bzF_4ul5J',
     'scaler.pkl': 'https://drive.google.com/uc?export=download&id=1JvaKTnDKflk9wKFh2rLFgiJ4FFxxVfAX',
     'power_transformer.pkl': 'https://drive.google.com/uc?export=download&id=13zqLEiYDFtR0BImgDrM0Ice-qs-C7_rx',
-    'feature_names.pkl': 'https://drive.google.com/uc?export=download&id=1qFHHpo3YD6KkzwmtB7p6EXBO9gNTda7a' ,
+    'feature_names.pkl': 'https://drive.google.com/uc?export=download&id=1qFHHpo3YD6KkzwmtB7p6EXBO9gNTda7a' , 
     'preprocessing_objects.pkl': 'https://drive.google.com/uc?export=download&id=1HxCxso4tJM34X0HeNyAkE6Vy4yAeJSJR',
     'risk_catboost_model.cbm': 'https://drive.google.com/uc?export=download&id=1TrgEU86-KZ5-V8m8AbNLcyCUM9exAllb',
     'risk_model_info.pkl': 'https://drive.google.com/uc?export=download&id=1uMtB3ik4j1gNoZ8G9XCKIG-NwqIGk5G5'
@@ -55,7 +56,7 @@ def download_file(url, filename):
 def load_models():
     """Load all models with download fallback"""
     os.makedirs('models', exist_ok=True)
-
+    
     # Download any missing files
     download_failed = False
     for filename, url in MODEL_URLS.items():
@@ -64,32 +65,32 @@ def load_models():
             with st.spinner(f" Downloading {filename}..."):
                 if not download_file(url, filepath):
                     download_failed = True
-
+    
     if download_failed:
         st.error("Some model files failed to download. Please check your Google Drive links.")
         return None
-
+    
     try:
         # Load severity model components
         severity_model = joblib.load('models/severity_gb_model.pkl')
-        feature_selector = joblib.load('models/feature_selector.pkl')
+        feature_selector = joblib.load('models/feature_selector.pkl') 
         scaler = joblib.load('models/scaler.pkl')
         power_transformer = joblib.load('models/power_transformer.pkl')
-
+        
         with open('models/feature_names.pkl', 'rb') as f:
             severity_features = pickle.load(f)
-
+            
         preprocessing_objects = joblib.load('models/preprocessing_objects.pkl')
-
+        
         # Load risk model components
         risk_model = CatBoostClassifier()
         risk_model.load_model('models/risk_catboost_model.cbm')
         risk_model_info = joblib.load('models/risk_model_info.pkl')
-
+        
         st.success(" All models loaded successfully!")
         return (severity_model, feature_selector, scaler, power_transformer,
                 severity_features, preprocessing_objects, risk_model, risk_model_info)
-
+        
     except Exception as e:
         st.error(f"Error loading models: {str(e)}")
         return None
@@ -122,12 +123,12 @@ risk_threshold = risk_model_info['risk_threshold']
 
 # Sidebar navigation
 st.sidebar.title("Navigation")
-app_mode = st.sidebar.selectbox("Choose Prediction Mode",
+app_mode = st.sidebar.selectbox("Choose Prediction Mode", 
                                ["Severity Prediction", "Risk Prediction", "About"])
 
 if app_mode == "Severity Prediction":
     st.header(" Accident Severity Prediction")
-
+    
     col1, col2, col3 = st.columns(3)
 
     with col1:
@@ -189,14 +190,14 @@ if app_mode == "Severity Prediction":
             'Precipitation(in)': [precipitation],
             'Is_Rush_Hour': [rush_hour_val],
             'Weather_Severity_Index': [
-                (10 - min(visibility, 10)) * 0.3 +
-                np.log1p(wind_speed) * 0.3 +
-                np.log1p(precipitation * 50) * 0.2 +
+                (10 - min(visibility, 10)) * 0.3 + 
+                np.log1p(wind_speed) * 0.3 + 
+                np.log1p(precipitation * 50) * 0.2 + 
                 (100 - humidity) * 0.2
             ],
             'Traffic_Congestion_Score': [
-                np.log1p(delay_typical) * 0.5 +
-                np.log1p(delay_freeflow) * 0.3 +
+                np.log1p(delay_typical) * 0.5 + 
+                np.log1p(delay_freeflow) * 0.3 + 
                 np.log1p(traffic_event_count) * 0.2
             ],
             'Accident_Density': [max(accident_count, 1)],
@@ -227,15 +228,15 @@ if app_mode == "Severity Prediction":
             # Display results
             st.markdown("---")
             col_result1, col_result2 = st.columns([1, 2])
-
+            
             with col_result1:
                 if prediction == 1:
                     st.error(f" HIGH SEVERITY ACCIDENT")
                     st.metric("Probability", f"{probability[1]:.1%}")
                 else:
-                    st.success(f" LOW SEVERITY ACCIDENT")
+                    st.success(f" LOW SEVERITY ACCIDENT") 
                     st.metric("Probability", f"{probability[0]:.1%}")
-
+            
             with col_result2:
                 fig, ax = plt.subplots(figsize=(8, 2))
                 colors = ['#28a745', '#dc3545']
@@ -260,12 +261,12 @@ else:
     st.header(" About This System")
     st.markdown("""
     ## Dual Accident Prediction System
-
+    
     **Features:**
     -  **Severity Prediction**: Gradient Boosting model for accident severity
     -  **Risk Prediction**: CatBoost model for high-risk areas
     -  **Cloud Deployment**: Models loaded from Google Drive
-
+    
     **Model Status:**  Loaded Successfully
     """)
 
