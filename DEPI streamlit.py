@@ -30,7 +30,6 @@ st.set_page_config(
 # === REPLACE THESE WITH YOUR ACTUAL GOOGLE DRIVE FILE IDs ===
 MODEL_URLS = {
     'severity_gb_model.pkl': 'https://drive.google.com/uc?export=download&id=1e_QQLqisbiaucI1PvGZS_NbJ6tfqVnVL',
-    'feature_importance.pkl': 'https://drive.google.com/uc?export=download&id=1olaI-iW5Ye43EslV2HxxOAq59seghPYs',
     'feature_selector.pkl': 'https://drive.google.com/uc?export=download&id=1UAs3iGBtKVQeMQ6FUh6cb0_bzF_4ul5J',
     'scaler.pkl': 'https://drive.google.com/uc?export=download&id=1JvaKTnDKflk9wKFh2rLFgiJ4FFxxVfAX',
     'power_transformer.pkl': 'https://drive.google.com/uc?export=download&id=13zqLEiYDFtR0BImgDrM0Ice-qs-C7_rx',
