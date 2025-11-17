@@ -18,77 +18,53 @@ st.set_page_config(
     layout="wide"
 )
 
-MODEL_URLS = {
+# Only download LARGE files, include small ones in repo
+SMALL_MODELS = ['scaler.pkl', 'power_transformer.pkl', 'feature_names.pkl', 
+                'preprocessing_objects.pkl', 'risk_model_info.pkl']
+
+LARGE_MODELS = {
     'severity_gb_model.pkl': 'https://drive.google.com/uc?export=download&id=1e_QQLqisbiaucI1PvGZS_NbJ6tfqVnVL',
     'feature_selector.pkl': 'https://drive.google.com/uc?export=download&id=1UAs3iGBtKVQeMQ6FUh6cb0_bzF_4ul5J',
-    'scaler.pkl': 'https://drive.google.com/uc?export=download&id=1JvaKTnDKflk9wKFh2rLFgiJ4FFxxVfAX',
-    'power_transformer.pkl': 'https://drive.google.com/uc?export=download&id=13zqLEiYDFtR0BImgDrM0Ice-qs-C7_rx',
-    'feature_names.pkl': 'https://drive.google.com/uc?export=download&id=1qFHHpo3YD6KkzwmtB7p6EXBO9gNTda7a',
-    'preprocessing_objects.pkl': 'https://drive.google.com/uc?export=download&id=1HxCxso4tJM34X0HeNyAkE6Vy4yAeJSJR',
-    'risk_catboost_model.cbm': 'https://drive.google.com/uc?export=download&id=1TrgEU86-KZ5-V8m8AbNLcyCUM9exAllb',
-    'risk_model_info.pkl': 'https://drive.google.com/uc?export=download&id=1uMtB3ik4j1gNoZ8G9XCKIG-NwqIGk5G5'
+    'risk_catboost_model.cbm': 'https://drive.google.com/uc?export=download&id=1TrgEU86-KZ5-V8m8AbNLcyCUM9exAllb'
 }
 
-def download_file(url, filename):
-    """Download file from Google Drive with retry logic"""
-    max_retries = 3
-    for attempt in range(max_retries):
-        try:
-            session = requests.Session()
-            response = session.get(url, stream=True, timeout=30)
-            response.raise_for_status()
-            
-            # Get file size for progress
-            total_size = int(response.headers.get('content-length', 0))
-            
-            with open(filename, 'wb') as f:
-                if total_size == 0:
-                    f.write(response.content)
-                else:
-                    downloaded = 0
-                    for chunk in response.iter_content(chunk_size=8192):
-                        if chunk:
-                            f.write(chunk)
-                            downloaded += len(chunk)
-            
-            # Verify file was downloaded
-            if os.path.getsize(filename) > 0:
-                return True
-            else:
-                os.remove(filename)  # Remove empty file
-                
-        except requests.exceptions.Timeout:
-            st.warning(f"Timeout downloading {filename}, attempt {attempt + 1}/{max_retries}")
-        except requests.exceptions.RequestException as e:
-            st.warning(f"Error downloading {filename}, attempt {attempt + 1}/{max_retries}: {str(e)}")
-        except Exception as e:
-            st.warning(f"Unexpected error with {filename}, attempt {attempt + 1}/{max_retries}: {str(e)}")
-    
-    st.error(f"❌ Failed to download {filename} after {max_retries} attempts")
-    return False
+def download_large_file(url, filename):
+    """Download large files with progress"""
+    try:
+        # Use gdown library for Google Drive
+        import gdown
+        output = f'models/{filename}'
+        gdown.download(url, output, quiet=False)
+        return os.path.exists(output)
+    except Exception as e:
+        st.error(f"Download failed: {str(e)}")
+        return False
 
 @st.cache_resource
 def load_models():
-    """Load all models with download fallback"""
+    """Load models - small ones from repo, large ones from download"""
     os.makedirs('models', exist_ok=True)
     
-    # Download any missing files
-    download_failed = False
-    for filename, url in MODEL_URLS.items():
+    # Copy small models from repo to models folder
+    for model_file in SMALL_MODELS:
+        if os.path.exists(model_file):
+            import shutil
+            shutil.copy(model_file, f'models/{model_file}')
+        else:
+            st.warning(f"Small model file {model_file} not found in repo")
+    
+    # Download large models
+    for filename, url in LARGE_MODELS.items():
         filepath = f'models/{filename}'
         if not os.path.exists(filepath):
-            with st.spinner(f" Downloading {filename}..."):
-                if not download_file(url, filepath):
-                    download_failed = True
-    
-    if download_failed:
-        st.error("Some model files failed to download. Please check your Google Drive links.")
-        return None
+            with st.spinner(f"📥 Downloading large file {filename}..."):
+                if not download_large_file(url, filename):
+                    return None
     
     try:
-        # Load severity model components
+        # Load all models
         severity_model = joblib.load('models/severity_gb_model.pkl')
-        feature_selector = joblib.load('models/feature_selector.pkl') 
+        feature_selector = joblib.load('models/feature_selector.pkl')
         scaler = joblib.load('models/scaler.pkl')
         power_transformer = joblib.load('models/power_transformer.pkl')
         
@@ -97,21 +73,20 @@ def load_models():
             
         preprocessing_objects = joblib.load('models/preprocessing_objects.pkl')
         
-        # Load risk model components
         risk_model = CatBoostClassifier()
         risk_model.load_model('models/risk_catboost_model.cbm')
         risk_model_info = joblib.load('models/risk_model_info.pkl')
         
-        st.success(" All models loaded successfully!")
+        st.success("✅ All models loaded successfully!")
         return (severity_model, feature_selector, scaler, power_transformer,
                 severity_features, preprocessing_objects, risk_model, risk_model_info)
         
     except Exception as e:
-        st.error(f"Error loading models: {str(e)}")
+        st.error(f"❌ Error loading models: {str(e)}")
         return None
 
 # Initialize the app
-st.title(" Dual Accident Prediction System")
+st.title("🚗 Dual Accident Prediction System")
 
 # Load models
 with st.spinner("Loading machine learning models..."):
@@ -120,9 +95,9 @@ with st.spinner("Loading machine learning models..."):
 if models is None:
     st.error("""
     **Failed to load models. Please:**
-    1. Check that all Google Drive links are correct
-    2. Ensure files are shared as "Anyone with the link can view"
-    3. Verify file IDs in the MODEL_URLS dictionary
+    1. Make sure the small model files are in your GitHub repo
+    2. Check that Google Drive links are working
+    3. Try refreshing the app
     """)
     st.stop()
 
@@ -142,7 +117,7 @@ app_mode = st.sidebar.selectbox("Choose Prediction Mode",
                                ["Severity Prediction", "Risk Prediction", "About"])
 
 if app_mode == "Severity Prediction":
-    st.header(" Accident Severity Prediction")
+    st.header("📊 Accident Severity Prediction")
     
     col1, col2, col3 = st.columns(3)
 
@@ -246,10 +221,10 @@ if app_mode == "Severity Prediction":
             
             with col_result1:
                 if prediction == 1:
-                    st.error(f" HIGH SEVERITY ACCIDENT")
+                    st.error(f"🚨 HIGH SEVERITY ACCIDENT")
                     st.metric("Probability", f"{probability[1]:.1%}")
                 else:
-                    st.success(f" LOW SEVERITY ACCIDENT") 
+                    st.success(f"✅ LOW SEVERITY ACCIDENT") 
                     st.metric("Probability", f"{probability[0]:.1%}")
             
             with col_result2:
@@ -268,22 +243,22 @@ if app_mode == "Severity Prediction":
             st.error(f"Prediction error: {str(e)}")
 
 elif app_mode == "Risk Prediction":
-    st.header(" Risk Prediction")
+    st.header("🔥 Risk Prediction")
     st.info("Risk prediction feature coming soon...")
     st.write("This will predict high-risk accident areas using the CatBoost model.")
 
 else:
-    st.header(" About This System")
+    st.header("📖 About This System")
     st.markdown("""
     ## Dual Accident Prediction System
     
     **Features:**
-    -  **Severity Prediction**: Gradient Boosting model for accident severity
-    -  **Risk Prediction**: CatBoost model for high-risk areas
-    -  **Cloud Deployment**: Models loaded from Google Drive
+    - 🚨 **Severity Prediction**: Gradient Boosting model for accident severity
+    - 🔥 **Risk Prediction**: CatBoost model for high-risk areas
+    - ☁️ **Hybrid Deployment**: Small models in repo, large models from Google Drive
     
-    **Model Status:**  Loaded Successfully
+    **Model Status:** ✅ Loaded Successfully
     """)
 
 st.markdown("---")
-st.markdown("Deployed on Streamlit Community Cloud | Models from Google Drive")
+st.markdown("Deployed on Streamlit Community Cloud | Hybrid Model Loading")
