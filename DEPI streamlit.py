@@ -18,9 +18,10 @@ st.set_page_config(
     layout="wide"
 )
 
-# Google Drive URLs - WITHOUT feature_selector.pkl
+# Google Drive URLs - INCLUDING feature_selector.pkl
 MODEL_URLS = {
     'severity_gb_model.pkl': 'https://drive.google.com/uc?export=download&id=1e_QQLqisbiaucI1PvGZS_NbJ6tfqVnVL',
+    'feature_selector.pkl': 'https://drive.google.com/uc?export=download&id=1UAs3iGBtKVQeMQ6FUh6cb0_bzF_4ul5J',
     'scaler.pkl': 'https://drive.google.com/uc?export=download&id=1JvaKTnDKflk9wKFh2rLFgiJ4FFxxVfAX',
     'power_transformer.pkl': 'https://drive.google.com/uc?export=download&id=13zqLEiYDFtR0BImgDrM0Ice-qs-C7_rx',
     'feature_names.pkl': 'https://drive.google.com/uc?export=download&id=1qFHHpo3YD6KkzwmtB7p6EXBO9gNTda7a',
@@ -32,7 +33,7 @@ MODEL_URLS = {
 def download_file_simple(url, filename):
     """Simple download function"""
     try:
-        response = requests.get(url, timeout=60)
+        response = requests.get(url, timeout=120)
         if response.status_code == 200:
             with open(filename, 'wb') as f:
                 f.write(response.content)
@@ -46,33 +47,32 @@ def download_file_simple(url, filename):
 
 @st.cache_resource
 def load_models():
-    """Load models without feature_selector"""
+    """Load all models including feature_selector"""
     os.makedirs('models', exist_ok=True)
     
-    # Show download progress
     download_status = st.empty()
     
-    # Download files (excluding feature_selector.pkl)
+    # Download files
     for i, (filename, url) in enumerate(MODEL_URLS.items()):
         filepath = f'models/{filename}'
         if not os.path.exists(filepath):
             download_status.info(f"📥 Downloading {filename}... ({i+1}/{len(MODEL_URLS)})")
             if not download_file_simple(url, filepath):
                 return None
-            # Small delay between downloads
             import time
-            time.sleep(1)
+            time.sleep(2)
     
     download_status.info("✅ All files downloaded! Loading models...")
     
     try:
-        # Load models (NO feature_selector)
+        # Load models
         severity_model = joblib.load('models/severity_gb_model.pkl')
+        feature_selector = joblib.load('models/feature_selector.pkl')
         scaler = joblib.load('models/scaler.pkl')
         power_transformer = joblib.load('models/power_transformer.pkl')
         
         with open('models/feature_names.pkl', 'rb') as f:
-            severity_features = pickle.load(f)
+            all_features = pickle.load(f)
             
         preprocessing_objects = joblib.load('models/preprocessing_objects.pkl')
         
@@ -81,9 +81,8 @@ def load_models():
         risk_model_info = joblib.load('models/risk_model_info.pkl')
         
         download_status.success("🎉 All models loaded successfully!")
-        st.sidebar.success(f"Loaded {len(severity_features)} features")
-        return (severity_model, scaler, power_transformer,
-                severity_features, preprocessing_objects, risk_model, risk_model_info)
+        return (severity_model, feature_selector, scaler, power_transformer,
+                all_features, preprocessing_objects, risk_model, risk_model_info)
         
     except Exception as e:
         st.error(f"❌ Error loading models: {str(e)}")
@@ -99,9 +98,9 @@ if models is None:
     st.error("Failed to load models. Please check your Google Drive links.")
     st.stop()
 
-# Unpack models (NO feature_selector)
-(severity_model, scaler, power_transformer,
- severity_features, preprocessing_objects, risk_model, risk_model_info) = models
+# Unpack models
+(severity_model, feature_selector, scaler, power_transformer,
+ all_features, preprocessing_objects, risk_model, risk_model_info) = models
 
 severity_threshold = preprocessing_objects['severity_threshold']
 skewed_features = preprocessing_objects['skewed_features']
@@ -109,8 +108,12 @@ risk_num_cols = risk_model_info['num_cols']
 risk_cat_cols = risk_model_info['cat_cols']
 risk_threshold = risk_model_info['risk_threshold']
 
+# Sidebar info
+st.sidebar.title("Model Info")
+st.sidebar.info(f"Model expects: {severity_model.n_features_in_} features")
+st.sidebar.info(f"Total features available: {len(all_features)}")
+
 # Sidebar navigation
-st.sidebar.title("Navigation")
 app_mode = st.sidebar.selectbox("Choose Prediction Mode", 
                                ["Severity Prediction", "Risk Prediction", "About"])
 
@@ -153,7 +156,7 @@ if app_mode == "Severity Prediction":
         season_mapping = {"Winter": 0, "Spring": 1, "Summer": 2, "Fall": 3}
         season_val = season_mapping[season]
 
-        # Create input data - EXACTLY 25 features that match training
+        # Create input data with ALL 25 features
         input_data = pd.DataFrame({
             # Original features (14)
             'Month': [month],
@@ -186,7 +189,7 @@ if app_mode == "Severity Prediction":
             ],
             'Accident_Density': [max(accident_count, 1)],
             'Log_Accident_Density': [np.log1p(max(accident_count, 1))],
-            'Weather_Traffic_Interaction': [0],  # Will calculate below
+            'Weather_Traffic_Interaction': [0],
             'Visibility_Humidity_Interaction': [visibility * humidity],
             'Temperature_Squared': [temperature ** 2],
             'Wind_Speed_Squared': [wind_speed ** 2],
@@ -200,27 +203,22 @@ if app_mode == "Severity Prediction":
         )
 
         try:
-            # Debug: Show feature matching
-            st.sidebar.write(f"Input features: {len(input_data.columns)}")
-            st.sidebar.write(f"Expected features: {len(severity_features)}")
+            # Reorder columns to match training order
+            input_data = input_data[all_features]
             
-            # Check if features match exactly
-            if list(input_data.columns) != severity_features:
-                st.error("❌ Feature mismatch! The features don't match the trained model.")
-                st.write("Expected:", severity_features)
-                st.write("Got:", list(input_data.columns))
-                st.stop()
-
-            # Preprocess and predict (WITHOUT feature selection)
+            # Preprocess: Power transform skewed features
             input_skewed = power_transformer.transform(input_data[skewed_features])
             input_transformed = input_data.copy()
             for i, col in enumerate(skewed_features):
                 input_transformed[col] = input_skewed[:, i]
 
-            # Scale all features (instead of using feature selector)
-            input_scaled = scaler.transform(input_transformed)
+            # Apply feature selection (this selects only 13 features)
+            input_selected = feature_selector.transform(input_transformed)
             
-            # Predict directly (no feature selection)
+            # Scale the selected features
+            input_scaled = scaler.transform(input_selected)
+            
+            # Predict
             prediction = severity_model.predict(input_scaled)[0]
             probability = severity_model.predict_proba(input_scaled)[0]
 
@@ -254,7 +252,6 @@ if app_mode == "Severity Prediction":
 elif app_mode == "Risk Prediction":
     st.header("🔥 Risk Prediction")
     st.info("Risk prediction feature coming soon...")
-    st.write("This will predict high-risk accident areas using the CatBoost model.")
 
 else:
     st.header("📖 About This System")
@@ -262,16 +259,11 @@ else:
     ## Dual Accident Prediction System
     
     **Features:**
-    - 🚨 **Severity Prediction**: Gradient Boosting model (25 features)
+    - 🚨 **Severity Prediction**: Gradient Boosting model (13 selected features)
     - 🔥 **Risk Prediction**: CatBoost model for high-risk areas
-    
-    **Model Details:**
-    - 25 carefully engineered features
-    - Real-time predictions
-    - Optimized performance
     
     **Model Status:** ✅ Loaded Successfully
     """)
 
 st.markdown("---")
-st.markdown("Deployed on Streamlit Community Cloud | 25 Feature Model")
+st.markdown("Deployed on Streamlit Community Cloud")
