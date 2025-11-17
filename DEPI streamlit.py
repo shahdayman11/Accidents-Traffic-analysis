@@ -1,8 +1,6 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
 from catboost import CatBoostClassifier
 import joblib
 import requests
@@ -20,9 +18,7 @@ st.set_page_config(
 # Google Drive URLs for Risk Model
 RISK_MODEL_URLS = {
     'risk_catboost_model.cbm': 'https://drive.google.com/uc?export=download&id=1TrgEU86-KZ5-V8m8AbNLcyCUM9exAllb',
-    'risk_model_info.pkl': 'https://drive.google.com/uc?export=download&id=1uMtB3ik4j1gNoZ8G9XCKIG-NwqIGk5G5',
-    'risk_location_plot.png': 'https://drive.google.com/uc?export=download&id=YOUR_LOCATION_PLOT_ID',
-    'feature_importance_plot.png': 'https://drive.google.com/uc?export=download&id=YOUR_IMPORTANCE_PLOT_ID'
+    'risk_model_info.pkl': 'https://drive.google.com/uc?export=download&id=1uMtB3ik4j1gNoZ8G9XCKIG-NwqIGk5G5'
 }
 
 def download_file_simple(url, filename):
@@ -81,7 +77,7 @@ risk_model, risk_model_info = model_data
 # Sidebar navigation
 st.sidebar.title("Navigation")
 app_mode = st.sidebar.selectbox("Choose Section", 
-                               ["Risk Prediction", "Model Insights", "About"])
+                               ["Risk Prediction", "Model Info", "About"])
 
 if app_mode == "Risk Prediction":
     st.header("🔮 Predict High-Risk Areas")
@@ -136,85 +132,69 @@ if app_mode == "Risk Prediction":
         })
         
         try:
-            # Get categorical feature indices
-            cat_features = [input_data.columns.get_loc(col) for col in risk_model_info['cat_cols']]
-            
             # Predict
             prediction = risk_model.predict(input_data)[0]
             probability = risk_model.predict_proba(input_data)[0]
             
             # Display results
             st.markdown("---")
-            col_result1, col_result2 = st.columns([1, 2])
             
-            with col_result1:
-                if prediction == 1:
-                    st.error(f"🔥 HIGH RISK AREA")
-                    st.metric("Risk Probability", f"{probability[1]:.1%}")
-                    st.info("""
-                    **High Risk Indicators:**
-                    - Potential for severe accidents
-                    - Consider safety measures
-                    - Monitor conditions closely
-                    """)
-                else:
-                    st.success(f"✅ LOW RISK AREA")
-                    st.metric("Risk Probability", f"{probability[0]:.1%}")
-                    st.info("""
-                    **Low Risk Area:**
-                    - Normal safety protocols sufficient
-                    - Continue monitoring
-                    """)
+            if prediction == 1:
+                st.error(f"🔥 HIGH RISK AREA")
+                st.metric("Risk Probability", f"{probability[1]:.1%}")
+                st.info("""
+                **High Risk Area - Recommended Actions:**
+                - Increase safety monitoring
+                - Deploy additional resources
+                - Issue public safety alerts
+                - Conduct safety inspections
+                """)
+            else:
+                st.success(f"✅ LOW RISK AREA")
+                st.metric("Risk Probability", f"{probability[0]:.1%}")
+                st.info("""
+                **Low Risk Area:**
+                - Continue standard safety protocols
+                - Maintain regular monitoring
+                - No immediate action required
+                """)
             
-            with col_result2:
-                fig, ax = plt.subplots(figsize=(8, 2))
-                colors = ['#28a745', '#dc3545']
-                labels = ['Low Risk', 'High Risk']
-                ax.barh(labels, probability, color=colors)
-                ax.set_xlim(0, 1)
-                ax.set_xlabel('Probability')
-                ax.set_title('Risk Prediction Confidence')
-                for i, v in enumerate(probability):
-                    ax.text(v + 0.01, i, f'{v:.1%}', va='center')
-                st.pyplot(fig)
+            # Show confidence levels
+            st.subheader("Prediction Confidence")
+            col1, col2 = st.columns(2)
+            with col1:
+                st.metric("Low Risk Confidence", f"{probability[0]:.1%}")
+            with col2:
+                st.metric("High Risk Confidence", f"{probability[1]:.1%}")
 
         except Exception as e:
             st.error(f"Prediction error: {str(e)}")
 
-elif app_mode == "Model Insights":
-    st.header("📊 Model Insights & Visualizations")
+elif app_mode == "Model Info":
+    st.header("📋 Model Information")
     
     col1, col2 = st.columns(2)
     
     with col1:
-        st.subheader("Risk Distribution")
-        try:
-            st.image('models/risk_distribution_plot.png', 
-                    caption='Distribution of High vs Low Risk Areas')
-        except:
-            st.info("Risk distribution plot not available")
-        
-        st.subheader("Feature Importance")
-        try:
-            st.image('models/feature_importance_plot.png',
-                    caption='Top 15 Most Important Features for Risk Prediction')
-        except:
-            st.info("Feature importance plot not available")
+        st.subheader("Model Details")
+        st.info(f"""
+        **Technical Specifications:**
+        - Algorithm: CatBoost Classifier
+        - Features: {len(risk_model_info['feature_names'])} total
+        - Numerical Features: {len(risk_model_info['num_cols'])}
+        - Categorical Features: {len(risk_model_info['cat_cols'])}
+        - Risk Threshold: {risk_model_info['risk_threshold']:.2f}
+        """)
     
     with col2:
-        st.subheader("Geographical Risk Patterns")
-        try:
-            st.image('models/risk_location_plot.png',
-                    caption='Accident Risk by Geographical Location')
-        except:
-            st.info("Location plot not available")
+        st.subheader("Feature Categories")
+        st.write("**Numerical Features:**")
+        for feature in risk_model_info['num_cols']:
+            st.write(f"• {feature}")
         
-        st.subheader("Risk Score Distribution")
-        try:
-            st.image('models/risk_score_distribution.png',
-                    caption='Distribution of Calculated Risk Scores')
-        except:
-            st.info("Risk score distribution plot not available")
+        st.write("**Categorical Features:**")
+        for feature in risk_model_info['cat_cols']:
+            st.write(f"• {feature}")
 
 else:
     st.header("📖 About This System")
@@ -222,23 +202,32 @@ else:
     ## Accident Risk Prediction System
     
     **Purpose:**
-    - Predict high-risk accident areas using machine learning
-    - Help prioritize safety measures and resources
-    - Provide actionable insights for accident prevention
-    
-    **Model Details:**
-    - **Algorithm**: CatBoost Classifier
-    - **Features**: 18 total (15 numerical, 3 categorical)
-    - **Target**: High_Risk (binary classification)
-    
-    **Key Features Used:**
-    - Location data (State, County, City, Coordinates)
+    This system uses machine learning to predict high-risk accident areas based on:
+    - Geographical location data
     - Weather conditions
     - Traffic patterns and severity
     - Historical accident data
     
-    **Model Status:** ✅ Loaded Successfully
+    **How It Works:**
+    1. Input current conditions and location data
+    2. Model analyzes risk factors in real-time
+    3. Returns risk probability and classification
+    4. Provides actionable recommendations
+    
+    **Model Features:**
+    - Real-time risk assessment
+    - High accuracy predictions
+    - Easy-to-use interface
+    - Instant results
+    
+    **Use Cases:**
+    - Emergency services planning
+    - Traffic management
+    - Public safety alerts
+    - Resource allocation
+    
+    **Model Status:** ✅ Operational
     """)
 
 st.markdown("---")
-st.markdown("Built with CatBoost | Deployed on Streamlit Cloud")
+st.markdown("Built with CatBoost | Streamlit Deployment")
