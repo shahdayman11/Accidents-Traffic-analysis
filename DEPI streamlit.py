@@ -19,14 +19,14 @@ st.set_page_config(
 )
 
 MODEL_URLS = {
-    'severity_gb_model.pkl': 'https://drive.google.com/uc?export=download&id=1e_QQLqisbiaucI1PvGZS_NbJ6tfqVnVL',
-    'feature_selector.pkl': 'https://drive.google.com/uc?export=download&id=1UAs3iGBtKVQeMQ6FUh6cb0_bzF_4ul5J',
-    'scaler.pkl': 'https://drive.google.com/uc?export=download&id=1JvaKTnDKflk9wKFh2rLFgiJ4FFxxVfAX',
-    'power_transformer.pkl': 'https://drive.google.com/uc?export=download&id=13zqLEiYDFtR0BImgDrM0Ice-qs-C7_rx',
-    'feature_names.pkl': 'https://drive.google.com/uc?export=download&id=1qFHHpo3YD6KkzwmtB7p6EXBO9gNTda7a',
-    'preprocessing_objects.pkl': 'https://drive.google.com/uc?export=download&id=1HxCxso4tJM34X0HeNyAkE6Vy4yAeJSJR',
-    'risk_catboost_model.cbm': 'https://drive.google.com/uc?export=download&id=1TrgEU86-KZ5-V8m8AbNLcyCUM9exAllb',
-    'risk_model_info.pkl': 'https://drive.google.com/uc?export=download&id=1uMtB3ik4j1gNoZ8G9XCKIG-NwqIGk5G5'
+    'severity_gb_model.pkl': 'https://drive.usercontent.google.com/download?id=1e_QQLqisbiaucI1PvGZS_NbJ6tfqVnVL&export=download&authuser=0&confirm=t',
+    'feature_selector.pkl': 'https://drive.usercontent.google.com/download?id=1UAs3iGBtKVQeMQ6FUh6cb0_bzF_4ul5J&export=download&authuser=0&confirm=t',
+    'scaler.pkl': 'https://drive.usercontent.google.com/download?id=1JvaKTnDKflk9wKFh2rLFgiJ4FFxxVfAX&export=download&authuser=0&confirm=t',
+    'power_transformer.pkl': 'https://drive.usercontent.google.com/download?id=13zqLEiYDFtR0BImgDrM0Ice-qs-C7_rx&export=download&authuser=0&confirm=t',
+    'feature_names.pkl': 'https://drive.usercontent.google.com/download?id=1qFHHpo3YD6KkzwmtB7p6EXBO9gNTda7a&export=download&authuser=0&confirm=t',
+    'preprocessing_objects.pkl': 'https://drive.usercontent.google.com/download?id=1HxCxso4tJM34X0HeNyAkE6Vy4yAeJSJR&export=download&authuser=0&confirm=t',
+    'risk_catboost_model.cbm': 'https://drive.usercontent.google.com/download?id=1TrgEU86-KZ5-V8m8AbNLcyCUM9exAllb&export=download&authuser=0&confirm=t',
+    'risk_model_info.pkl': 'https://drive.usercontent.google.com/download?id=1uMtB3ik4j1gNoZ8G9XCKIG-NwqIGk5G5&export=download&authuser=0&confirm=t'
 }
 
 def download_file(url, filename):
