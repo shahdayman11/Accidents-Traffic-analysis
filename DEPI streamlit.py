@@ -189,24 +189,46 @@ elif app_mode == "Model Info":
     
     with col1:
         st.subheader("Model Details")
+        
+        # Safe access to model info with fallbacks
+        feature_names = risk_model_info.get('feature_names', ['Unknown'])
+        num_cols = risk_model_info.get('num_cols', [])
+        cat_cols = risk_model_info.get('cat_cols', [])
+        risk_threshold = risk_model_info.get('risk_threshold', 0.5)
+        
         st.info(f"""
         **Technical Specifications:**
         - Algorithm: CatBoost Classifier
-        - Features: {len(risk_model_info['feature_names'])} total
-        - Numerical Features: {len(risk_model_info['num_cols'])}
-        - Categorical Features: {len(risk_model_info['cat_cols'])}
-        - Risk Threshold: {risk_model_info['risk_threshold']:.2f}
+        - Features: {len(feature_names)} total
+        - Numerical Features: {len(num_cols)}
+        - Categorical Features: {len(cat_cols)}
+        - Risk Threshold: {risk_threshold:.2f}
         """)
     
     with col2:
         st.subheader("Feature Categories")
-        st.write("**Numerical Features:**")
-        for feature in risk_model_info['num_cols']:
-            st.write(f"• {feature}")
         
-        st.write("**Categorical Features:**")
-        for feature in risk_model_info['cat_cols']:
-            st.write(f"• {feature}")
+        # Get feature lists with safe fallbacks
+        num_features = risk_model_info.get('num_cols', [])
+        cat_features = risk_model_info.get('cat_cols', [])
+        
+        if num_features:
+            st.write("**Numerical Features:**")
+            for feature in num_features:
+                st.write(f"• {feature}")
+        else:
+            st.write("**Numerical Features:** Not available in model info")
+        
+        if cat_features:
+            st.write("**Categorical Features:**")
+            for feature in cat_features:
+                st.write(f"• {feature}")
+        else:
+            st.write("**Categorical Features:** Not available in model info")
+        
+        # Show all available keys in model_info for debugging
+        st.subheader("Available Model Info")
+        st.write("Keys in model_info:", list(risk_model_info.keys()))
 
 else:
     st.header(" About This System")
