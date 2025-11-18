@@ -84,7 +84,7 @@ if model_data is None:
 
 risk_model, risk_model_info = model_data
 
-st.success("✅ Risk model loaded successfully!")
+st.success(" Risk model loaded successfully!")
 
 # Sidebar navigation
 st.sidebar.title("Navigation")
@@ -92,7 +92,7 @@ app_mode = st.sidebar.selectbox("Choose Section",
                                ["Risk Prediction", "Model Info", "About"])
 
 if app_mode == "Risk Prediction":
-    st.header("🔮 Predict High-Risk Areas")
+    st.header(" Predict High-Risk Areas")
     
     col1, col2 = st.columns(2)
     
@@ -120,7 +120,7 @@ if app_mode == "Risk Prediction":
         delay_freeflow = st.number_input("Delay from Free Flow (mins)", value=6.0)
         traffic_distance = st.number_input("Traffic Distance", value=2.5)
 
-    if st.button("🎯 Predict Risk Level", type="primary", use_container_width=True):
+    if st.button(" Predict Risk Level", type="primary", use_container_width=True):
         # Prepare input data
         input_data = pd.DataFrame({
             'Year': [year],
@@ -152,7 +152,7 @@ if app_mode == "Risk Prediction":
             st.markdown("---")
             
             if prediction == 1:
-                st.error(f"🔥 HIGH RISK AREA")
+                st.error(f" HIGH RISK AREA")
                 st.metric("Risk Probability", f"{probability[1]:.1%}")
                 st.info("""
                 **High Risk Area - Recommended Actions:**
@@ -162,7 +162,7 @@ if app_mode == "Risk Prediction":
                 - Conduct safety inspections
                 """)
             else:
-                st.success(f"✅ LOW RISK AREA")
+                st.success(f" LOW RISK AREA")
                 st.metric("Risk Probability", f"{probability[0]:.1%}")
                 st.info("""
                 **Low Risk Area:**
@@ -209,7 +209,7 @@ elif app_mode == "Model Info":
             st.write(f"• {feature}")
 
 else:
-    st.header("📖 About This System")
+    st.header(" About This System")
     st.markdown("""
     ## Accident Risk Prediction System
     
@@ -238,7 +238,7 @@ else:
     - Public safety alerts
     - Resource allocation
     
-    **Model Status:** ✅ Operational
+    **Model Status:**  Operational
     """)
 
 st.markdown("---")
